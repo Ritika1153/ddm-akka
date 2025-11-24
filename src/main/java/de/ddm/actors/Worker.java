@@ -13,9 +13,6 @@ import de.ddm.serialization.AkkaSerializable;
 import de.ddm.singletons.SystemConfigurationSingleton;
 import lombok.NoArgsConstructor;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class Worker extends AbstractBehavior<Worker.Message> {
 
 	////////////////////
@@ -45,20 +42,18 @@ public class Worker extends AbstractBehavior<Worker.Message> {
 		Reaper.watchWithDefaultReaper(this.getContext().getSelf());
 
 		final int numWorkers = SystemConfigurationSingleton.get().getNumWorkers();
-
-		this.workers = new ArrayList<>(numWorkers);
-		for (int id = 0; id < numWorkers; id++)
-			this.workers.add(context.spawn(
+		if (numWorkers > 0)
+			this.dependencyWorker = context.spawn(
 					DependencyWorker.create(),
-					DependencyWorker.DEFAULT_NAME + "_" + id,
-					DispatcherSelector.fromConfig("akka.worker-pool-dispatcher")));
+					DependencyWorker.DEFAULT_NAME,
+					DispatcherSelector.fromConfig("akka.worker-pinned-dispatcher"));
 	}
 
 	/////////////////
 	// Actor State //
 	/////////////////
 
-	final List<ActorRef<DependencyWorker.Message>> workers;
+	private ActorRef<DependencyWorker.Message> dependencyWorker;
 
 	////////////////////
 	// Actor Behavior //

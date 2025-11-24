@@ -18,6 +18,7 @@ import lombok.NoArgsConstructor;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 public class InputReader extends AbstractBehavior<InputReader.Message> {
@@ -93,15 +94,33 @@ public class InputReader extends AbstractBehavior<InputReader.Message> {
 	}
 
 	private Behavior<Message> handle(ReadBatchMessage message) throws IOException, CsvValidationException {
-		List<String[]> batch = new ArrayList<>(message.getBatchSize());
-		for (int i = 0; i < message.getBatchSize(); i++) {
+		// Read a batch of lines and turn them into column sets
+		List<HashSet<String>> batchOfColumnSets = new ArrayList<>(this.header.length);
+		int i;
+		for (i = 0; i < this.header.length; i++)
+			batchOfColumnSets.add(new HashSet<>());
+
+		for (i = 0; i < message.getBatchSize(); i++) {
 			String[] line = this.reader.readNext();
 			if (line == null)
 				break;
-			batch.add(line);
+			for (int j = 0; j < this.header.length; j++)
+				batchOfColumnSets.get(j).add(line[j]);
 		}
 
-		message.getReplyTo().tell(new DependencyMiner.BatchMessage(this.id, batch));
+		// Send an empty BatchMessage if no lines have been read
+		if (i == 0) {
+			message.getReplyTo().tell(new DependencyMiner.BatchMessage(this.id, new String[0][]));
+			return this;
+		}
+
+		// Turn the column sets into column arrays, because these can be serialized more effectively
+		String[][] batchOfColumnArrays = new String[this.header.length][];
+		for (i = 0; i < this.header.length; i++)
+			batchOfColumnArrays[i] = batchOfColumnSets.get(i).toArray(new String[]{});
+
+		// Send the column arrays to respond to the current ReadBatchMessage
+		message.getReplyTo().tell(new DependencyMiner.BatchMessage(this.id, batchOfColumnArrays));
 		return this;
 	}
 
