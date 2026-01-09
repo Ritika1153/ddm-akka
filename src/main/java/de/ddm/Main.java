@@ -23,7 +23,6 @@ public class Main {
 
 			guardian.tell(new Guardian.StartMessage());
 
-			// Demo code - commented out for production (algorithm terminates automatically)
 			// if (config.isEnterShutdown()) {
 			// 	waitForInput(">>> Press ENTER to exit <<<");
 			// 	guardian.tell(new Guardian.ShutdownMessage());
